@@ -373,9 +373,9 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 1.9551891
-  m_Height: 3.9103782
+  m_Height: 3.9103792
   m_Direction: 1
-  m_Center: {x: 0.051566433, y: 1, z: 0}
+  m_Center: {x: 0.051566448, y: 1.0000002, z: -0.000000008521417}
 --- !u!114 &7859830209360379230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -391,11 +391,16 @@ MonoBehaviour:
   player: {fileID: 0}
   playerRenderer: {fileID: 0}
   stuckSpeed: 0
+  jumpMobileButton: {fileID: 0}
+  jumpButtonImage: {fileID: 0}
   tapsToEscape: 6
   escapeDistance: 0.5
   forwardBoost: 2
   flashColor: {r: 1, g: 0, b: 0, a: 1}
   flashSpeed: 6
+  escapeText: {fileID: 0}
+  escapeTextTMP: {fileID: 0}
+  playerAnimator: {fileID: 0}
 --- !u!1001 &3863239411711627432
 PrefabInstance:
   m_ObjectHideFlags: 0

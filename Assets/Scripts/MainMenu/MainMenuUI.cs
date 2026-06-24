@@ -60,6 +60,8 @@ public class MainMenuUI : MonoBehaviour
 
     public void PlayGame()
     {
+        PlayerPrefs.SetInt("ShowIntroPanel", 1);
+        PlayerPrefs.Save();
         SceneManager.LoadScene("Game");
     }
 

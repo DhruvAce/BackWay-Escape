@@ -63,11 +63,17 @@ public class EnemyBallHunter : MonoBehaviour
     private enum State { Patrol, Chase, Return }
     private State state;
 
+    // -------- 2-HIT LIMIT --------
+    [Header("Hit Limit")]
+    public int maxHitsPerChase = 2;
+    private int hitCount;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         startPosition = transform.position;
         state = State.Patrol;
+        hitCount = 0;
     }
 
     void Update()
@@ -131,8 +137,18 @@ public class EnemyBallHunter : MonoBehaviour
     // ---------------- SCAN (IMPROVED MULTI AI) ----------------
     void ScanForBall()
     {
+        // Don't pick up the ball again if we've already hit our limit this chase cycle
+        if (hitCount >= maxHitsPerChase && state != State.Patrol)
+            return;
+
         if (ballTarget == null)
         {
+            // Only scan when patrolling or returning — not while already chasing
+            if (state == State.Chase) return;
+
+            // Reset hit counter when starting a fresh chase from patrol/return
+            if (hitCount >= maxHitsPerChase) return;
+
             GameObject obj = GameObject.FindGameObjectWithTag("Ball");
             if (obj == null) return;
 
@@ -184,6 +200,9 @@ public class EnemyBallHunter : MonoBehaviour
     {
         agent.speed = 3.5f;
 
+        // Reset hit counter when we begin patrolling so enemy can chase again
+        hitCount = 0;
+
         if (idleTimer > 0)
         {
             idleTimer -= Time.deltaTime;
@@ -220,6 +239,15 @@ public class EnemyBallHunter : MonoBehaviour
             return;
         }
 
+        // Hit limit reached — stop chasing and go back
+        if (hitCount >= maxHitsPerChase)
+        {
+            ballTarget = null;
+            ball = null;
+            state = State.Return;
+            return;
+        }
+
         agent.SetDestination(ballTarget.position);
 
         float dist = Vector3.Distance(transform.position, ballTarget.position);
@@ -246,7 +274,7 @@ public class EnemyBallHunter : MonoBehaviour
             state = State.Patrol;
     }
 
-    // ---------------- CORNER FIX ----------------
+    // ---------------- CORNER FIX (IMPROVED) ----------------
     void HandleCornerStuck()
     {
         if (ball == null) return;
@@ -267,22 +295,46 @@ public class EnemyBallHunter : MonoBehaviour
 
         if (stuckTimer >= stuckCheckTime)
         {
-            Vector3 escapeDir = (ball.position - transform.position).normalized;
-            escapeDir.y = 0;
+            // Cast rays to detect which walls are close so we kick away from them
+            Vector3 ballPos = ball.position;
+            Vector3 awayFromEnemy = (ballPos - transform.position).normalized;
+            awayFromEnemy.y = 0;
 
-            Vector3 side = Vector3.Cross(escapeDir, Vector3.up);
+            // Check for walls on left and right sides to pick the more open direction
+            Vector3 right = Vector3.Cross(Vector3.up, awayFromEnemy);
+            bool wallRight = Physics.Raycast(ballPos, right, 1.5f, wallMask);
+            bool wallLeft  = Physics.Raycast(ballPos, -right, 1.5f, wallMask);
+            bool wallAhead = Physics.Raycast(ballPos, awayFromEnemy, 1.5f, wallMask);
 
-            Vector3 finalKick =
-                (escapeDir + side * 0.8f + Vector3.up * 0.2f).normalized;
+            Vector3 sideDir;
+            if (wallRight && !wallLeft)
+                sideDir = -right;           // open left
+            else if (wallLeft && !wallRight)
+                sideDir = right;            // open right
+            else
+                sideDir = right;            // both blocked or both open — pick right
 
+            // If the direct path is also blocked, angle away more sharply
+            float sideBias = wallAhead ? 1.5f : 0.8f;
+
+            Vector3 finalKick = (awayFromEnemy + sideDir * sideBias + Vector3.up * 0.25f).normalized;
+
+            ball.linearVelocity = Vector3.zero; // clear stuck velocity first
             ball.AddForce(finalKick * escapeForce, ForceMode.Impulse);
 
             PlayKickSound();
 
             stuckTimer = 0;
 
-            state = State.Return;
-            ballTarget = null;
+            // Count this as one of the hits
+            hitCount++;
+
+            if (hitCount >= maxHitsPerChase)
+            {
+                ballTarget = null;
+                ball = null;
+                state = State.Return;
+            }
         }
     }
 
@@ -304,9 +356,22 @@ public class EnemyBallHunter : MonoBehaviour
 
         kickTimer = kickCooldown;
 
-        ballTarget = null;
-        ball = null;
-        state = State.Return;
+        hitCount++;
+
+        if (hitCount >= maxHitsPerChase)
+        {
+            // Hit limit reached — disengage immediately
+            ballTarget = null;
+            ball = null;
+            state = State.Return;
+        }
+        else
+        {
+            // Still have hits left — keep chasing
+            ballTarget = null;
+            ball = null;
+            state = State.Return;
+        }
     }
 
     // ---------------- SOUND ----------------

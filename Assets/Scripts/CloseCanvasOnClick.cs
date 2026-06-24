@@ -9,7 +9,35 @@ public class CloseCanvasOnClick : MonoBehaviour
     [Header("Optional: Prevent closing when clicking UI")]
     public bool ignoreUI = true;
 
-    private bool isActive = true;
+    private bool isActive = false;
+
+    void Start()
+    {
+        // Show panel only when game starts from Main Menu
+        if (PlayerPrefs.GetInt("ShowIntroPanel", 0) == 1)
+        {
+            if (targetCanvas != null)
+                targetCanvas.SetActive(true);
+
+            isActive = true;
+
+            // Pause game while panel is open
+            Time.timeScale = 0f;
+
+            // Remove flag so restart won't show it again
+            PlayerPrefs.SetInt("ShowIntroPanel", 0);
+            PlayerPrefs.Save();
+        }
+        else
+        {
+            if (targetCanvas != null)
+                targetCanvas.SetActive(false);
+
+            isActive = false;
+
+            Time.timeScale = 1f;
+        }
+    }
 
     void Update()
     {
@@ -18,26 +46,32 @@ public class CloseCanvasOnClick : MonoBehaviour
         // Mouse click (PC)
         if (Input.GetMouseButtonDown(0))
         {
-            HandleClose(Input.mousePosition);
+            HandleClose();
         }
 
         // Touch input (Mobile)
-        if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+        if (Input.touchCount > 0 &&
+            Input.GetTouch(0).phase == TouchPhase.Began)
         {
-            HandleClose(Input.GetTouch(0).position);
+            HandleClose();
         }
     }
 
-    void HandleClose(Vector2 inputPosition)
+    void HandleClose()
     {
         if (ignoreUI && EventSystem.current != null)
         {
-            if (EventSystem.current.IsPointerOverGameObject())
-                return;
-
-            if (Input.touchCount > 0 &&
-                EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
-                return;
+            if (Input.touchCount > 0)
+            {
+                if (EventSystem.current.IsPointerOverGameObject(
+                    Input.GetTouch(0).fingerId))
+                    return;
+            }
+            else
+            {
+                if (EventSystem.current.IsPointerOverGameObject())
+                    return;
+            }
         }
 
         CloseCanvas();
@@ -48,11 +82,14 @@ public class CloseCanvasOnClick : MonoBehaviour
         if (targetCanvas != null)
         {
             targetCanvas.SetActive(false);
-            isActive = false;
         }
+
+        isActive = false;
+
+        // Resume game
+        Time.timeScale = 1f;
     }
 
-    // Optional: call this from a UI Button directly
     public void CloseFromButton()
     {
         CloseCanvas();
@@ -64,5 +101,7 @@ public class CloseCanvasOnClick : MonoBehaviour
 
         if (targetCanvas != null)
             targetCanvas.SetActive(true);
+
+        Time.timeScale = 0f;
     }
 }
